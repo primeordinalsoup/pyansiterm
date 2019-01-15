@@ -12,12 +12,12 @@ with open('LICENSE.txt') as f:
     the_license = f.read()
 
 setup(
-    name='pyansiterm',
-    version='0.0.1',
+    name='ansiterm',
+    version='0.0.2',
     description='Python module to drive ANSI terminals.',
     long_description=readme,
     author='Peter Kraak<pkraak@dynamiccontrols.com>',
     license=the_license,
-    packages=['pyansiterm'],
+    packages=['ansiterm'],
     entry_points={}
 )

@@ -2,7 +2,7 @@
 """ simple multi-line terminal output with colour, for console app progress bars, simple text boxes etc. """
 
 from enum import Enum
-import sys, time
+import sys, time, re
 import subprocess
 
 class Colour(Enum):
@@ -26,6 +26,21 @@ class EraseRegion(Enum):
     CSR_TO_END   = 0
     CSR_TO_START = 1
     ALL          = 2
+
+def length_octets(ansi_string):
+    return len(ansi_string)
+
+ANSI_FONT_REGEX = re.compile("\x1b\[.*m")
+
+def length_ansi_escape_chars(ansi_string):
+    lth = 0
+    # add up all the ANSI escape sequence characters
+    for substring in ANSI_FONT_REGEX.findall(ansi_string):
+        lth += len(substring)
+    return lth
+
+def length_printable_chars(ansi_string):
+    return len(ansi_string) - length_ansi_escape_chars(ansi_string)
 
 class ANSICode(object):
     # constant class variables
@@ -221,7 +236,7 @@ class Screen(object):
     def __init__(self, widgets=None):
         self.cols = int(subprocess.check_output(["tput", "cols"]))
         self.lines = int(subprocess.check_output(["tput", "lines"]))
-        self._widgets = widgets
+        self._widgets = widgets or []
         # we hide the cursor while the widgets are active
         HideCursor().put()
     
@@ -309,11 +324,17 @@ class StaticListBox(Widget):
         self._lines += ["" for l in range(self.length)]
         self._lines = self._lines[:self.length]
         trailing_blanks = ' ' * self.width
-        self._lines = [ (s + trailing_blanks)[:self.width] for s in self._lines]
+        # append blanks to each line and then trim to exact lenght of box width,
+        # taking into account embedded ANSI escape sequences
+        self._lines = [ (s + trailing_blanks)[:self.width + length_ansi_escape_chars(s)] for s in self._lines]
+        #self._lines = [ s + trailing_blanks for s in self._lines]
+        #self._lines = [ s[self.width + length_ansi_escape_chars(s):] for s in self._lines]
+        #self._lines = [ s[:self.width] for s in self._lines]
 
     def draw(self):
         self._font.put()
         offset = 0
+        self._square_out_lines()
         for line in self._lines:
             GotoXY(self.origin_x+offset, self.origin_y).put()
             sys.stdout.write(line)
